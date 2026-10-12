@@ -1,46 +1,73 @@
+"use client";
+
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { products } from '@/data/products';
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
-  const product = products.find((item) => item.id === Number(params.id));
+export default function ProductsPage() {
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
-  if (!product) {
-    notFound();
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === 'All') return products;
+    return products.filter((product) => product.category === selectedCategory);
+  }, [selectedCategory]);
+
+  function addToCart(productId: number) {
+    const current = JSON.parse(localStorage.getItem('perfume-cart') || '[]');
+    const next = current.includes(productId) ? current : [...current, productId];
+    localStorage.setItem('perfume-cart', JSON.stringify(next));
+    window.dispatchEvent(new Event('cart-updated'));
   }
 
   return (
-    <main className="page-shell product-detail">
-      <Link href="/products" className="text-link">← Back to collections</Link>
-      <div className="detail-layout">
-        <div className="detail-image" style={{ background: product.accent }}>
-          <img src={product.image} alt={product.name} />
+    <main className="page-shell">
+      <section className="page-header">
+        <div>
+          <p className="eyebrow">Shop all</p>
+          <h1>Curated fragrances.</h1>
         </div>
+        <Link href="/cart" className="secondary-btn">Cart</Link>
+      </section>
 
-        <div className="detail-copy">
-          <p className="eyebrow">{product.category}</p>
-          <h1>{product.name}</h1>
-          <div className="rating-line">
-            <span>★ {product.rating}</span>
-            <span>{product.reviews} reviews</span>
-          </div>
-          <p className="detail-description">{product.description}</p>
-          <div className="detail-price">
-            <strong>${product.price}</strong>
-            <span>{product.size}</span>
-          </div>
+      <div className="filters-row">
+        {['All', 'Floral', 'Woody', 'Fresh', 'Oriental'].map((category) => (
+          <button
+            key={category}
+            type="button"
+            className={selectedCategory === category ? 'active' : ''}
+            onClick={() => setSelectedCategory(category)}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
 
-          <div className="purchase-actions">
-            <button type="button" className="primary-btn">Add to cart</button>
-            <button type="button" className="secondary-btn">Add to wishlist</button>
-          </div>
-
-          <ul className="detail-points">
-            <li>Long-lasting fragrance with balanced projection</li>
-            <li>Premium oil concentration for luxurious wear</li>
-            <li>Presented in signature glass packaging</li>
-          </ul>
-        </div>
+      <div className="product-grid large-grid">
+        {filteredProducts.map((product) => (
+          <article key={product.id} className="product-card">
+            <div className="product-image-wrap" style={{ background: product.accent }}>
+              <img src={product.image} alt={product.name} />
+            </div>
+            <div className="product-meta">
+              <div className="product-row">
+                <span>{product.category}</span>
+                <span>★ {product.rating}</span>
+              </div>
+              <h3>{product.name}</h3>
+              <p>{product.description}</p>
+              <div className="product-row price-row">
+                <strong>${product.price}</strong>
+                <span>{product.size}</span>
+              </div>
+              <div className="shop-actions">
+                <Link href={`/products/${product.id}`} className="card-btn secondary-card-btn">Details</Link>
+                <button type="button" className="primary-btn add-cart-btn" onClick={() => addToCart(product.id)}>
+                  Add to cart
+                </button>
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
     </main>
   );

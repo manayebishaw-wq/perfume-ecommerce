@@ -1,40 +1,54 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { products } from '@/data/products';
 
-const inter = Inter({ subsets: ['latin'] });
+export default function ProductDetailPage({ params }: { params: { id: string } }) {
+  const product = products.find((item) => item.id === Number(params.id));
 
-export const metadata: Metadata = {
-  title: 'Maison de Parfum',
-  description: 'Luxury perfume boutique',
-};
+  if (!product) {
+    notFound();
+  }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+  function addToCart() {
+    const current = JSON.parse(localStorage.getItem('perfume-cart') || '[]');
+    const next = current.includes(product.id) ? current : [...current, product.id];
+    localStorage.setItem('perfume-cart', JSON.stringify(next));
+    window.dispatchEvent(new Event('cart-updated'));
+  }
+
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <header className="topbar">
-          <div className="brand-block">
-            <div className="brand-mark">M</div>
-            <div>
-              <span>Maison</span>
-              <strong>de Parfum</strong>
-            </div>
+    <main className="page-shell product-detail">
+      <Link href="/products" className="text-link">← Back to collections</Link>
+      <div className="detail-layout">
+        <div className="detail-image" style={{ background: product.accent }}>
+          <img src={product.image} alt={product.name} />
+        </div>
+
+        <div className="detail-copy">
+          <p className="eyebrow">{product.category}</p>
+          <h1>{product.name}</h1>
+          <div className="rating-line">
+            <span>★ {product.rating}</span>
+            <span>{product.reviews} reviews</span>
+          </div>
+          <p className="detail-description">{product.description}</p>
+          <div className="detail-price">
+            <strong>${product.price}</strong>
+            <span>{product.size}</span>
           </div>
 
-          <nav className="nav-links" aria-label="Main navigation">
-            <a href="/">Home</a>
-            <a href="/products">Shop</a>
-            <a href="/admin">Admin</a>
-            <a href="/login">Account</a>
-          </nav>
-
-          <div className="nav-actions">
-            <a href="/cart" className="cart-pill">Cart (2)</a>
+          <div className="purchase-actions">
+            <button type="button" className="primary-btn" onClick={addToCart}>Add to cart</button>
+            <button type="button" className="secondary-btn">Add to wishlist</button>
           </div>
-        </header>
-        {children}
-      </body>
-    </html>
+
+          <ul className="detail-points">
+            <li>Long-lasting fragrance with balanced projection</li>
+            <li>Premium oil concentration for luxurious wear</li>
+            <li>Presented in signature glass packaging</li>
+          </ul>
+        </div>
+      </div>
+    </main>
   );
 }

@@ -1,52 +1,120 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
+"use client";
+
+import { useEffect, useMemo, useState } from 'react';
 import { products } from '@/data/products';
 
-export const metadata: Metadata = {
-  title: 'Shop Perfume | Maison de Parfum',
-  description: 'Browse luxury perfumes and fragrance essentials from our signature collection.',
-};
+export default function CartPage() {
+  const [cartItems, setCartItems] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
 
-export default function ProductsPage() {
+  useEffect(() => {
+    const stored = localStorage.getItem('perfume-cart');
+    if (stored) {
+      try {
+        setCartItems(JSON.parse(stored));
+      } catch {
+        setCartItems([]);
+      }
+    }
+  }, []);
+
+  const selectedProducts = useMemo(
+    () => products.filter((product) => cartItems.includes(product.id)),
+    [cartItems],
+  );
+
+  const subtotal = selectedProducts.reduce((sum, product) => sum + product.price, 0);
+
+  async function handleCheckout() {
+    if (!selectedProducts.length) return;
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: selectedProducts.map((product) => ({ id: product.id, quantity: 1 })),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Checkout failed');
+      }
+
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+
+      window.location.href = '/checkout/success?demo=1';
+    } catch (error) {
+      console.error(error);
+      alert('Unable to start checkout. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <main className="page-shell">
+    <main className="page-shell cart-page">
       <section className="page-header">
         <div>
-          <p className="eyebrow">Shop all</p>
-          <h1>Curated fragrances.</h1>
+          <p className="eyebrow">Your cart</p>
+          <h1>Ready to check out?</h1>
         </div>
-        <Link href="/cart" className="secondary-btn">Cart (2)</Link>
       </section>
 
-      <div className="filters-row">
-        <button type="button">All</button>
-        <button type="button">Floral</button>
-        <button type="button">Woody</button>
-        <button type="button">Fresh</button>
-        <button type="button">Oriental</button>
-      </div>
-
-      <div className="product-grid large-grid">
-        {products.map((product) => (
-          <article key={product.id} className="product-card">
-            <div className="product-image-wrap" style={{ background: product.accent }}>
-              <img src={product.image} alt={product.name} />
-            </div>
-            <div className="product-meta">
-              <div className="product-row">
-                <span>{product.category}</span>
-                <span>★ {product.rating}</span>
-              </div>
-              <h3>{product.name}</h3>
-              <p>{product.description}</p>
-              <div className="product-row price-row">
+      <div className="cart-layout">
+        <div className="cart-items">
+          {selectedProducts.length ? (
+            selectedProducts.map((product) => (
+              <div key={product.id} className="cart-item">
+                <div className="mini-image" style={{ background: `linear-gradient(135deg, ${product.accent}, #5f2d28)` }} />
+                <div>
+                  <h3>{product.name}</h3>
+                  <span>
+                    {product.size} · {product.category}
+                  </span>
+                </div>
                 <strong>${product.price}</strong>
-                <span>{product.size}</span>
               </div>
-              <Link href={`/products/${product.id}`} className="card-btn">Add to cart</Link>
+            ))
+          ) : (
+            <div className="empty-state">
+              <p>Your cart is empty.</p>
+              <a href="/products" className="secondary-btn">Browse fragrances</a>
             </div>
-          </article>
-        ))}
+          )}
+        </div>
+
+        <aside className="checkout-card">
+          <h3>Order summary</h3>
+          <div className="summary-row">
+            <span>Subtotal</span>
+            <span>${subtotal || 0}</span>
+          </div>
+          <div className="summary-row">
+            <span>Shipping</span>
+            <span>{subtotal > 0 ? 'Free' : '$0'}</span>
+          </div>
+          <div className="summary-row total">
+            <span>Total</span>
+            <span>${subtotal || 0}</span>
+          </div>
+          <button
+            type="button"
+            className="primary-btn checkout-btn"
+            onClick={handleCheckout}
+            disabled={loading || !selectedProducts.length}
+          >
+            {loading ? 'Processing...' : 'Checkout'}
+          </button>
+        </aside>
       </div>
     </main>
   );
